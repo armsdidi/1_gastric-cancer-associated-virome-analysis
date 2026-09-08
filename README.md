@@ -12,13 +12,13 @@ The workflow was designed to investigate the composition and diversity of viral 
 
 The analytical workflow is organized into nine sequential steps:
 
-**Raw RNA-Seq reads**
+* **Raw RNA-Seq reads**
 ↓
-** 1. Quality control and preprocessing** — fastp
+* **1. Quality control and preprocessing** — fastp
 ↓
-** 2. Human host-read removal** — Bowtie2
+* **2. Human host-read removal** — Bowtie2
 ↓
-** 3. Viral taxonomic classification** — Kraken2
+* **3. Viral taxonomic classification** — Kraken2
 ↓
 **4. Viral taxa filtering** — R
 ↓
