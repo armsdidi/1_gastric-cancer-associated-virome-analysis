@@ -1,5 +1,2 @@
-# Ignore data directory
-htmls/
-
 # Ignore Excel files
 *.xlsx
