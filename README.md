@@ -4,13 +4,13 @@
 
 This repository contains Shell and R scripts developed for the characterization of the **gastric cancer-associated virome** using metatranscriptomic RNA-Seq data.
 
-The workflow was designed to investigate the composition and diversity of viral communities across gastric tissues and their associations with clinicopathological features of gastric cancer. The analyses include raw read preprocessing, host-read removal, viral taxonomic classification, taxonomic filtering, viral composition, alpha and beta diversity, community profiling and clustering, differential abundance analysis, and characterization of Epstein–Barr virus (EBV) transcriptional patterns.
+The workflow was designed to investigate the composition and diversity of viral communities across gastric tissues and their associations with clinicopathological features of gastric cancer. The analyses include raw read preprocessing, host-read removal, viral taxonomic classification, taxonomic filtering, viral composition, alpha and beta diversity, community profiling and clustering, and differential abundance analysis.
 
 ---
 
 ## Workflow
 
-The analytical workflow is organized into nine sequential steps:
+The analytical workflow is organized into eight sequential steps:
 
 * **Raw RNA-Seq reads**
 ↓
@@ -20,17 +20,15 @@ The analytical workflow is organized into nine sequential steps:
 ↓
 * **3. Viral taxonomic classification** — Kraken2
 ↓
-**4. Viral taxa filtering** — R
+* **4. Viral taxa filtering** — R
 ↓
-**5. Viral composition and relative abundance** — R
+* **5. Viral composition and relative abundance** — R
 ↓
-**6. Alpha and beta diversity** — R
+* **6. Alpha and beta diversity** — R
 ↓
-**7. Community patterns and clustering** — R
+* **7. Community patterns and clustering** — R
 ↓
-**8. Differential abundance analysis** — R
-↓
-**9. EBV transcriptional profiling** — R
+* **8. Differential abundance analysis** — R
 
 ---
 
@@ -60,13 +58,13 @@ Preprocessed reads are aligned against the human reference genome using **Bowtie
 
 Performs taxonomic classification of host-depleted reads using **Kraken2** and a viral reference database.
 
-Classification reports are generated for each sample and can subsequently be explored using tools such as **Pavian**.
-
 **Main output:** Kraken2 classification reports containing viral taxonomic assignments and read counts.
 
 ---
 
 ### `4_Filtering_viral_taxa.Rmd`
+
+Kraken2 classification reports were subsequently integrated and explored in **RStudio** using the **pavian** package
 
 Processes and filters the viral taxonomic classification results before downstream ecological analyses.
 
@@ -122,16 +120,6 @@ Differential abundance analyses are performed using **LEfSe (Linear Discriminant
 
 ---
 
-### `9_EBV_transcriptional_profile.Rmd`
-
-Characterizes the transcriptional profile of **Epstein–Barr virus (EBV)** in EBV-positive gastric tumors.
-
-The analysis evaluates the expression patterns of EBV genes and non-coding RNAs to investigate the relative contribution of latent and lytic viral transcriptional programs.
-
-**Main output:** EBV gene-expression profiles and visualization of viral transcriptional patterns.
-
----
-
 ## Main Analyses
 
 The repository covers the following analytical components:
@@ -149,7 +137,6 @@ The repository covers the following analytical components:
 * PAM clustering
 * Differential abundance analysis using LEfSe
 * Associations with clinicopathological features
-* EBV transcriptional profiling
 
 ---
 
@@ -162,12 +149,12 @@ The preprocessing and taxonomic classification steps require:
 * **fastp**
 * **Bowtie2**
 * **Kraken2**
-* **Pavian**
 
 ### R
 
 Downstream analyses were performed in **R** using packages including:
 
+* `pavian`
 * `phyloseq`
 * `microbiome`
 * `vegan`
@@ -223,11 +210,11 @@ The study explores how viral communities differ across gastric tissues and wheth
 
 Results generated using this workflow contributed to the following publication:
 
-**Unveiling the Viral Landscape in Gastric Cancer**
+**Comprehensive analysis of the gastric metatranscriptome reveals specific viral signatures associated with gastric cancer**
 
 *International Microbiology* (2026)
 
-DOI: `10.1007/s00284-026-05120-9`
+DOI: `10.1007/s10123-026-00867-4`
 
 ---
 
@@ -239,8 +226,7 @@ This project is distributed under the **MIT License**. See the `LICENSE` file fo
 
 ## Author
 
-**Diego Armstrong**
+**Diego Pereira**
 
-PhD in Genetics and Molecular Biology
-Bioinformatics | Cancer Genomics | Microbiome & Virome | Transcriptomic Data Analysis
+Bioinformatics Scientist | PhD in Genetics and Molecular Biology | Transcriptomic and Metagenomic Data Analysis
 
