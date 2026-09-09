@@ -14,21 +14,21 @@ The analytical workflow is organized into eight sequential steps:
 
 * **Raw RNA-Seq reads**
 ↓
-* **1. Quality control and preprocessing** — fastp
+* **1. Quality control and preprocessing**
 ↓
-* **2. Human host-read removal** — Bowtie2
+* **2. Human host-read removal**
 ↓
-* **3. Viral taxonomic classification** — Kraken2
+* **3. Viral taxonomic classification**
 ↓
-* **4. Viral taxa filtering** — R
+* **4. Viral taxa filtering**
 ↓
-* **5. Viral composition and relative abundance** — R
+* **5. Viral composition and relative abundance**
 ↓
-* **6. Alpha and beta diversity** — R
+* **6. Alpha and beta diversity**
 ↓
-* **7. Community patterns and clustering** — R
+* **7. Community patterns and clustering**
 ↓
-* **8. Differential abundance analysis** — R
+* **8. Differential abundance analysis**
 
 ---
 
