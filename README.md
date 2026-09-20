@@ -1,4 +1,4 @@
-# Gastric Cancer-Associated Virome Analysis
+# Gastric Cancer-Associated Virome Analysis Pipeline
 
 ## Overview
 
