@@ -1,232 +1,183 @@
 # Gastric Cancer-Associated Virome Analysis Pipeline
 
-## Overview
+Shell and R Markdown scripts for characterizing viral communities in human gastric tissues using paired-end metatranscriptomic RNA-Seq data. The workflow covers preprocessing, host-read removal, viral classification, taxonomic filtering, composition, diversity, clustering, and differential abundance in relation to tissue type and clinicopathological characteristics.
 
-This repository contains Shell and R scripts developed for the characterization of the **gastric cancer-associated virome** using metatranscriptomic RNA-Seq data.
+**Keywords:** gastric cancer; virome; metatranscriptomics; RNA-Seq; viral communities; bioinformatics.
 
-The workflow was designed to investigate the composition and diversity of viral communities across gastric tissues and their associations with clinicopathological features of gastric cancer. The analyses include raw read preprocessing, host-read removal, viral taxonomic classification, taxonomic filtering, viral composition, alpha and beta diversity, community profiling and clustering, and differential abundance analysis.
+## Project identifiers
 
----
+| Resource | Identifier or location |
+| --- | --- |
+| Source code | [GitHub repository](https://github.com/armsdidi/1_gastric-cancer-associated-virome-analysis) |
+| Related publication | *Comprehensive analysis of the gastric metatranscriptome reveals specific viral signatures associated with gastric cancer*. International Microbiology (2026). |
+| Article DOI | [10.1007/s10123-026-00867-4](https://doi.org/10.1007/s10123-026-00867-4) |
+| License | [MIT](LICENSE) |
+| Author | [Diego Pereira](https://github.com/armsdidi) |
 
-## Workflow
+The article DOI identifies the publication, not an archived software release. A software DOI is not currently documented.
 
-The analytical workflow is organized into eight sequential steps:
+## Workflow and repository structure
 
-* **Raw RNA-Seq reads**
-↓
-* **1. Quality control and preprocessing**
-↓
-* **2. Human host-read removal**
-↓
-* **3. Viral taxonomic classification**
-↓
-* **4. Viral taxa filtering**
-↓
-* **5. Viral composition and relative abundance**
-↓
-* **6. Alpha and beta diversity**
-↓
-* **7. Community patterns and clustering**
-↓
-* **8. Differential abundance analysis**
+Run the scripts in numerical order. Additional inputs and a report-export step are required; the repository is not a fully automated end-to-end workflow.
 
----
+| Step | Script | Analysis and output |
+| --- | --- | --- |
+| 1 | [1_Quality_control_and_preprocessing.sh](1_Quality_control_and_preprocessing.sh) | fastp preprocessing; cleaned paired FASTQ and HTML/JSON QC reports |
+| 2 | [2_Removing_host_contamination.sh](2_Removing_host_contamination.sh) | Bowtie2 alignment against hg38; paired reads not aligning concordantly to the human reference |
+| 3 | [3_Taxonomic_classification.sh](3_Taxonomic_classification.sh) | Kraken2 classification; per-sample taxonomic reports |
+| 4 | [4_Filtering_viral_taxa.Rmd](4_Filtering_viral_taxa.Rmd) | Integration and filtering of exported tables; `virus_tab.xlsx` |
+| 5 | [5_Viral_composition.Rmd](5_Viral_composition.Rmd) | Prevalence, abundance, genome type, and host-group composition |
+| 6 | [6_Alpha_and_beta_diversity.Rmd](6_Alpha_and_beta_diversity.Rmd) | Alpha diversity, Bray–Curtis PCoA, PERMANOVA, and PERMDISP |
+| 7 | [7_Community_patterns_and_clustering.Rmd](7_Community_patterns_and_clustering.Rmd) | Jensen–Shannon divergence and PAM community clustering |
+| 8 | [8_Differential_abundance.Rmd](8_Differential_abundance.Rmd) | LEfSe comparisons across tissue and clinical categories |
 
-## Repository Structure
+## Data availability and access
 
-### `1_Quality_control_and_preprocessing.sh`
+The source code and documentation are publicly accessible through GitHub without authentication for reading or cloning. Raw reads, reference databases, exported taxonomic tables, clinical metadata, and analysis results are not included.
 
-Performs quality control and preprocessing of raw paired-end RNA-Seq reads.
+**Study-data accessions and access conditions are not yet documented here.** Exact reproduction of the study requires additional information. Before distributing a complete study package, document:
 
-The script uses **fastp** to remove adapters, trim low-quality bases, filter low-quality reads, and generate quality-control reports for each sample.
+- Sequencing archive, study/run accessions, direct links, and sample-to-run mapping.
+- Locations and reuse terms for processed abundance and viral annotation tables.
+- Whether de-identified clinical metadata are open, controlled, or unavailable, with any applicable access procedure.
+- Human reference source/release and index construction procedure.
+- Viral database source, version/build date, download identifier, and checksums.
 
-**Main output:** cleaned paired-end FASTQ files suitable for downstream analyses.
+[ENA](https://www.ebi.ac.uk/ena/browser/home) is an example of a sequencing archive; this link is not a study-specific accession. Public code availability does not imply that all study inputs are openly available.
 
----
+## Input formats
 
-### `2_Removing_host_contamination.sh`
+| Input | Expected format or structure | Step |
+| --- | --- | --- |
+| Raw paired reads | FASTQ: `<sample>_1.fastq`, `<sample>_2.fastq` | 1 |
+| Cleaned reads | Gzip FASTQ: `<sample>.R1.clean.fastq.gz`, `<sample>.R2.clean.fastq.gz` | 2 |
+| Host-depleted reads | Gzip FASTQ: `<sample>.nonhuman_R1.fastq.gz`, `<sample>.nonhuman_R2.fastq.gz` | 3 |
+| Human reference | Bowtie2 index configured by `BOWTIE_INDEX` | 2 |
+| Viral database | Kraken2 database directory configured by `REF_DIR` | 3 |
+| Exported classification tables | `virus_tab1.tsv` through `virus_tab10.tsv`, with taxon name, lineage, and numeric sample counts | 4 |
+| Viral abundance | `virus_tab.xlsx`: `Taxon` identifier column followed by numeric sample-count columns | 5–8 |
+| Clinical metadata | `clinical_data.xlsx`: one row per sample, identifier in `samples_diego` | 5–8 |
+| Viral annotations | `virus_hosp.xlsx`: includes `Taxon`, `Virus_Group`, `Genome_Type` | 5 |
 
-Removes sequencing reads originating from the human host.
+Kraken2 reports must be integrated/exported before use as the TSV inputs of step 4. The original workflow describes using **Pavian** for this intermediate step. Review the import code for the full expected structure; the ten exported files reflect the original dataset organization.
 
-Preprocessed reads are aligned against the human reference genome using **Bowtie2**, and unmapped reads are retained for subsequent microbial and viral analyses.
+### Metadata fields used in comparisons
 
-**Main output:** host-depleted paired-end reads.
+| Field | Meaning | Categories used in the scripts |
+| --- | --- | --- |
+| `samples_diego` | Unique sample identifier | Must match abundance-table column names |
+| `Tissue` | Tissue category | `GC` (gastric cancer), `NT` (normal tissue) |
+| `Lauren` | Histological classification | `Intestinal`, `Diffuse` |
+| `Neoadjuvant` | Treatment status | `Treated`, `Untreated` |
+| `Tumor_site` | Tumor location | `Cardia`, `Non-Cardia` |
+| `TNM` | Stage | `I`, `II`, `III`, `IV` |
 
----
+Several R analyses explicitly subset `GC` and `NT`; adapt these subsets to analyze other tissue categories. Keep sample identifiers consistent across files and inspect the sample-name transformations in step 4. Preserve raw counts and document conversions to relative abundance.
 
-### `3_Taxonomic_classification.sh`
+FASTQ and TSV facilitate exchange between tools. XLSX is the current input format for downstream analyses. When releasing tables, add TSV/CSV copies, a data dictionary, taxonomic identifiers, and the reference taxonomy version. Changing file formats also requires adapting the import code.
 
-Performs taxonomic classification of host-depleted reads using **Kraken2** and a viral reference database.
+## Requirements and dependencies
 
-**Main output:** Kraken2 classification reports containing viral taxonomic assignments and read counts.
+The Shell steps require **Bash**, **Conda**, **fastp**, **Bowtie2**, **Kraken2**, a human reference index, and a viral classification database. PBS is required only for the original scheduler submission configuration.
 
----
+The scripts contain server-specific absolute paths and Conda activation commands. PBS directives request **24 CPUs and 36 hours per job**; these are configured requests, not measured minimum requirements or guaranteed runtimes.
 
-### `4_Filtering_viral_taxa.Rmd`
+The R Markdown scripts load:
 
-Kraken2 classification reports were subsequently integrated and explored in **RStudio** using the **pavian** package
+`readxl`, `dplyr`, `tibble`, `tidyr`, `openxlsx`, `purrr`, `ggplot2`, `colorspace`, `gridExtra`, `grid`, `circlize`, `ggvenn`, `ComplexHeatmap`, `vegan`, `ggpubr`, `microbiome`, `phyloseq`, `patchwork`, `ade4`, `cluster`, `philentropy`, `factoextra`, `microbiomeMarker`, and `scales`.
 
-Processes and filters the viral taxonomic classification results before downstream ecological analyses.
+Pavian is used for report integration/exploration. RStudio can be used to execute the `.Rmd` chunks; rendering requires R Markdown tooling such as `rmarkdown` and `knitr`.
 
-This step removes viral taxa considered unsuitable for the characterization of the human gastric virome and generates the filtered viral abundance table used in subsequent analyses.
+**Exact software/package versions are not recorded, and no environment lockfile or container is supplied.** Record tool versions and R `sessionInfo()` with each analysis.
 
-**Main output:** curated viral abundance table.
+## Execution
 
----
+### 1. Obtain and identify the code
 
-### `5_Viral_composition.Rmd`
+```bash
+git clone https://github.com/armsdidi/1_gastric-cancer-associated-virome-analysis.git
+cd 1_gastric-cancer-associated-virome-analysis
+git rev-parse HEAD
+```
 
-Characterizes the taxonomic composition of the gastric virome.
+Record the commit identifier with the results.
 
-The analyses include viral prevalence, abundance, relative abundance, genome type, host-associated viral groups, and comparisons of viral composition across gastric tissue groups.
+### 2. Configure inputs and paths
 
-**Main output:** descriptive statistics and visualizations of gastric viral composition.
+Edit directory variables, Conda activation commands, references, and resource settings in scripts 1–3. Create required output directories; not all scripts create them automatically. Check paired-read naming conventions.
 
----
+**Existing cleanup behavior:** step 1 ends with `rm *.fastq.gz` inside `RAW_DIR`. Review or remove this line before running to avoid deleting original compressed reads. Step 2 removes intermediate SAM files.
 
-### `6_Alpha_and_beta_diversity.Rmd`
+### 3. Execute the Shell steps sequentially
 
-Evaluates within-sample and between-sample viral diversity.
+For a configured PBS environment, submit each job only after the preceding step has completed successfully:
 
-Alpha diversity is assessed using metrics such as **Observed richness** and the **Shannon diversity index**.
+```bash
+qsub 1_Quality_control_and_preprocessing.sh
+# After step 1 completes:
+qsub 2_Removing_host_contamination.sh
+# After step 2 completes:
+qsub 3_Taxonomic_classification.sh
+```
 
-Beta diversity is evaluated using ecological distance metrics and ordination approaches, including **Bray–Curtis dissimilarity** and **Principal Coordinates Analysis (PCoA)**. Statistical differences in community structure are assessed using **PERMANOVA** and **PERMDISP**.
+For execution without PBS, adapt the server configuration and run each script with `bash`. Inspect logs, QC reports, and outputs before proceeding; the scripts lack comprehensive failure checking.
 
-Analyses are performed across gastric tissue groups and selected clinicopathological characteristics.
+Bowtie2's `--un-conc-gz` retains pairs that do not align concordantly; this does not by itself establish that both mates are free of human sequence.
 
-**Main output:** diversity estimates, statistical tests, and ordination plots.
+### 4. Prepare downstream tables
 
----
+Integrate/export Kraken2 reports using Pavian and prepare step 4's TSV inputs. Review its sample renaming and filtering. The hard-coded `1:987` and `1:451` column ranges are dataset-specific and must match the actual table dimensions.
 
-### `7_Community_patterns_and_clustering.Rmd`
+Run step 4 to produce `virus_tab.xlsx`. Provide `clinical_data.xlsx` and, for step 5, `virus_hosp.xlsx` in the R working directory, or update the input paths.
 
-Investigates patterns of viral community organization across gastric samples.
+### 5. Run the R analyses
 
-Viral community dissimilarity is estimated using **Jensen–Shannon divergence (JSD)**, followed by **Partitioning Around Medoids (PAM)** clustering to identify recurrent viral community profiles.
+Open steps 5–8 in RStudio and run the relevant chunks after checking sample matching, group definitions, and inputs. Review each document before rendering it in full. Save tables, figures, parameters, and session information with the results.
 
-Cluster structure is further explored using ordination methods and associations with tissue type and clinicopathological characteristics.
+## Parameters visible in the scripts
 
-**Main output:** viral community clusters and associated visualizations.
+| Component | Implemented settings |
+| --- | --- |
+| fastp | Paired-end adapter detection; qualified Phred threshold 15; minimum length 50; 8 threads |
+| Bowtie2 | hg38 index prefix; `--very-sensitive`; 24 threads; `--un-conc-gz` |
+| Kraken2 | Paired-end classification; `--use-names`; 20 threads |
+| Filtering | Lineages matching `Viruses`; samples and taxa with total counts greater than 4 at their respective filtering steps |
+| Diversity | Alpha diversity including richness and Shannon; Bray–Curtis ordination; PERMANOVA and PERMDISP |
+| Clustering | Jensen–Shannon divergence and PAM |
+| LEfSe | CPM normalization; Kruskal–Wallis cutoff 0.05; LDA cutoff 2.5 for tissue and 2 for clinical comparisons |
 
----
+Consult the scripts for complete statistical settings. Review thresholds before reuse with another dataset. RNA-Seq taxonomic assignments alone do not establish productive viral infection or causality in gastric cancer.
 
-### `8_Differential_abundance.Rmd`
+## FAIR alignment
 
-Identifies viral taxa with differential abundance between gastric tissue groups and clinicopathological categories.
+This README makes identifiers, input formats, access limitations, methods, and reuse terms explicit. **README changes alone do not establish full FAIR compliance.** FAIR concerns data and metadata as well as software.
 
-Differential abundance analyses are performed using **LEfSe (Linear Discriminant Analysis Effect Size)** to identify taxa associated with specific biological or clinical groups.
+| Principle | Documented here | Remaining work |
+| --- | --- | --- |
+| **Findable** | Title, keywords, repository URL, related article DOI | Archive a software release with a persistent identifier; add study accessions and dataset metadata |
+| **Accessible** | Public code access and explicit information about absent inputs | Specify data access URLs/procedures, restrictions, and preservation arrangements |
+| **Interoperable** | Formats, metadata fields, group labels, shared sample identifiers | Provide machine-readable schemas, taxonomic identifiers, and exchange-format table copies |
+| **Reusable** | MIT license, execution order, dependencies, parameters, adaptation requirements | Record exact versions and reference provenance; supply example inputs, environment specification, and data reuse terms |
 
-**Main output:** differentially abundant viral taxa and corresponding effect-size visualizations.
+## Citation
 
----
+When using this workflow, cite the associated article:
 
-## Main Analyses
+> *Comprehensive analysis of the gastric metatranscriptome reveals specific viral signatures associated with gastric cancer*. International Microbiology (2026). https://doi.org/10.1007/s10123-026-00867-4
 
-The repository covers the following analytical components:
-
-* RNA-Seq quality control and preprocessing
-* Human host-read depletion
-* Viral taxonomic classification
-* Viral taxonomic filtering
-* Viral prevalence and relative abundance
-* Viral genome and host-group characterization
-* Alpha diversity
-* Beta diversity and ordination
-* PERMANOVA and PERMDISP
-* Jensen–Shannon divergence
-* PAM clustering
-* Differential abundance analysis using LEfSe
-* Associations with clinicopathological features
-
----
-
-## Requirements and Dependencies
-
-### Command-line tools
-
-The preprocessing and taxonomic classification steps require:
-
-* **fastp**
-* **Bowtie2**
-* **Kraken2**
-
-### R
-
-Downstream analyses were performed in **R** using packages including:
-
-* `pavian`
-* `phyloseq`
-* `microbiome`
-* `vegan`
-* `microbiomeMarker`
-* `ggplot2`
-* `circlize`
-* `ComplexHeatmap`
-* `ade4`
-* `cluster`
-* `philentropy`
-* `factoextra`
-
-Additional R packages used for data manipulation and visualization are specified within the corresponding R Markdown scripts.
-
----
-
-## Input Data
-
-The workflow was developed for **paired-end metatranscriptomic RNA-Seq data from human gastric tissue samples**.
-
-The main input files include:
-
-* Raw paired-end FASTQ files
-* Human reference genome/index for host-read removal
-* Kraken2 viral reference database
-* Sample metadata containing tissue and clinicopathological information
-
-Raw sequencing data and clinical metadata are **not included in this repository**.
-
-Users interested in reproducing the workflow should adapt file paths, reference databases, metadata, and computational resources according to their local environment.
-
----
-
-## Reproducibility
-
-Scripts are numbered according to the recommended execution order.
-
-Shell scripts (`.sh`) contain the initial preprocessing and taxonomic classification steps, whereas R Markdown files (`.Rmd`) contain the downstream statistical, ecological, and visualization analyses.
-
-File paths, computational resources, reference databases, and sample metadata may need to be modified before running the workflow in a different computational environment.
-
----
-
-## Research Context
-
-This workflow was developed as part of a research project investigating the **gastric cancer-associated virome** using metatranscriptomic sequencing.
-
-The study explores how viral communities differ across gastric tissues and whether virome characteristics are associated with clinicopathological features of gastric cancer.
-
----
-
-## Publication
-
-Results generated using this workflow contributed to the following publication:
-
-**Comprehensive analysis of the gastric metatranscriptome reveals specific viral signatures associated with gastric cancer**
-
-*International Microbiology* (2026)
-
-DOI: `10.1007/s10123-026-00867-4`
-
----
+Also cite this repository with the commit or release used. Cite external tools, databases, and datasets according to their respective guidance. An archived software release and `CITATION.cff` would support a more precise software citation.
 
 ## License
 
-This project is distributed under the **MIT License**. See the `LICENSE` file for details.
+Source code and repository documentation are distributed under the [MIT License](LICENSE), copyright © 2026 Diego Pereira. Retain the license and copyright notice when redistributing applicable material.
 
----
+This license does not grant rights to external sequencing data, clinical metadata, databases, or third-party software; their own terms apply.
 
-## Author
+## Author and support
 
 **Diego Pereira**
 
-Bioinformatics Scientist | PhD in Genetics & Molecular Biology | NGS | R | Linux/Bash | Metagenomics & Metatranscriptomics
+Bioinformatics Scientist | PhD in Genetics & Molecular Biology | NGS | R | Linux/Bash | Metagenomics & Metatranscriptomics.
+
+Use [GitHub Issues](https://github.com/armsdidi/1_gastric-cancer-associated-virome-analysis/issues) for questions, bug reports, or suggestions. Include the script, commit, software versions, and a reproducible description without identifiable clinical information.
 
