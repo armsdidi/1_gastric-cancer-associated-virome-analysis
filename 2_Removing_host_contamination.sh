@@ -1,67 +1,79 @@
 #!/bin/bash
 
-#PBS -l select=1:ncpus=24
-#PBS -l walltime=36:00:00
-#PBS -N diego_human_removal
-#PBS -V
-#PBS -j oe
-#PBS -o diego_human_removal_report
+# ============================================================
+# HUMAN READ REMOVAL WITH Bowtie2
+# ============================================================
 
-# Activating the conda environment:
-source /sw/apps/python/anaconda3-2024-10-1/etc/profile.d/conda.sh
-conda activate /home/dpereira/bioinfo_env
+# Stop the script if an error occurs:
+set -euo pipefail
 
-# Creating the main directories:
-BASE_DIR="/scratch/LABIOINF/dpereira"
-CLEAN_DIR="$BASE_DIR/samples/clean_fastq"
-NONHUMAN_DIR="$BASE_DIR/samples/nonhuman_fastq"
-ALIGN_DIR="$BASE_DIR/human_alignment"
-REF_DIR="$BASE_DIR/reference/hg38"
-BOWTIE_INDEX="$REF_DIR/hg38"
+# Number of threads:
+THREADS=8
 
-# Creating the sample list:
-cd "$CLEAN_DIR"
+# Directories:
+BASE_DIR="$(pwd)"
+CLEAN_DIR="$BASE_DIR/FASTQ/CLEAN_FASTQ"
+NONHUMAN_DIR="$BASE_DIR/FASTQ/NON-HUMAN_FASTQ"
+LOG_DIR="$BASE_DIR/QC/Bowtie2"
+BOWTIE_INDEX="$BASE_DIR/DATABASES/BOWTIE2/hg38"
+SAMPLE_LIST="$BASE_DIR/all_sample.txt"
 
-echo ">>> Creating sample list..."
+# Create directories:
+mkdir -p "$LOG_DIR"
 
-ls *.R1.clean.fastq.gz \
-    | sed 's/.R1.clean.fastq.gz//' \
-    | sort -u > "$BASE_DIR/all_sample.txt"
+# Create the sample list:
+echo ">>> Creating the sample list..."
 
-# Starting human read removal:
+find "$CLEAN_DIR" \
+    -maxdepth 1 \
+    -type f \
+    -name "*.R1.clean.fastq.gz" \
+    -exec basename {} \; \
+    | sed 's/\.R1\.clean\.fastq\.gz$//' \
+    | sort -u \
+    > "$SAMPLE_LIST"
+
+# Check whether samples are available:
+if [ ! -s "$SAMPLE_LIST" ]; then
+    echo "ERROR: no samples found in $CLEAN_DIR" >&2
+    exit 1
+fi
+
+echo ">>> Number of samples: $(wc -l < "$SAMPLE_LIST")"
+
+# Check paired-end files before processing:
+while IFS= read -r SAMPLE; do
+
+    R1="$CLEAN_DIR/${SAMPLE}.R1.clean.fastq.gz"
+    R2="$CLEAN_DIR/${SAMPLE}.R2.clean.fastq.gz"
+
+    if [ ! -s "$R1" ] || [ ! -s "$R2" ]; then
+        echo "ERROR: R1 or R2 file missing or empty for $SAMPLE" >&2
+        exit 1
+    fi
+
+done < "$SAMPLE_LIST"
+
+# Start human read removal:
 echo ">>> Starting human read removal..."
 
-while read -r SAMPLE; do
+while IFS= read -r SAMPLE; do
 
-    echo "===================================="
-    echo " → Processing: $SAMPLE"
-    echo "===================================="
+    echo ">>> Processing: $SAMPLE"
 
     # Aligning reads against the human genome and retaining unmapped paired-end reads:
-    echo ">>> Aligning reads against the human genome..."
-
     bowtie2 \
         -x "$BOWTIE_INDEX" \
         -1 "$CLEAN_DIR/${SAMPLE}.R1.clean.fastq.gz" \
         -2 "$CLEAN_DIR/${SAMPLE}.R2.clean.fastq.gz" \
-        -p 24 \
+        -p "$THREADS" \
         --very-sensitive \
-        --un-conc-gz "$NONHUMAN_DIR/${SAMPLE}.nonhuman.fastq.gz" \
-        -S "$ALIGN_DIR/${SAMPLE}.human.sam"
+        --un-conc-gz "$NONHUMAN_DIR/${SAMPLE}.nonhuman_R%.fastq.gz" \
+        -S /dev/null \
+        2> "$LOG_DIR/${SAMPLE}.bowtie2.log"
 
-    # Removing the SAM file:
-    rm "$ALIGN_DIR/${SAMPLE}.human.sam"
+    echo ">>> Completed: $SAMPLE"
 
-    # Renaming unmapped paired-end reads:
-    mv "$NONHUMAN_DIR/${SAMPLE}.nonhuman.fastq.1.gz" \
-       "$NONHUMAN_DIR/${SAMPLE}.nonhuman_R1.fastq.gz"
+done < "$SAMPLE_LIST"
 
-    mv "$NONHUMAN_DIR/${SAMPLE}.nonhuman.fastq.2.gz" \
-       "$NONHUMAN_DIR/${SAMPLE}.nonhuman_R2.fastq.gz"
-
-    echo " → Completed: $SAMPLE"
-    echo "===================================="
-
-done < "$BASE_DIR/all_sample.txt"
-
-echo ">>> Human read removal completed successfully!"
+echo ">>> Processing with Bowtie2 completed successfully!"
