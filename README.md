@@ -22,7 +22,7 @@ Run the scripts in numerical order. Additional inputs and a report-export step a
 
 | Step | Script | Analysis and output |
 | --- | --- | --- |
-| 1 | [1_Quality_control_and_preprocessing.sh](1_Quality_control_and_preprocessing.sh) | fastp preprocessing; cleaned paired FASTQ and HTML/JSON QC reports |
+| 1 | [1_Quality_control_and_preprocessing.sh](1_Quality_control_and_preprocessing.sh) | FastQC and MultiQC before/after fastp adapter trimming and quality/length filtering; cleaned paired FASTQ and QC reports |
 | 2 | [2_Removing_host_contamination.sh](2_Removing_host_contamination.sh) | Bowtie2 alignment against hg38; paired reads not aligning concordantly to the human reference |
 | 3 | [3_Taxonomic_classification.sh](3_Taxonomic_classification.sh) | Kraken2 classification; per-sample taxonomic reports |
 | 4 | [4_Filtering_viral_taxa.Rmd](4_Filtering_viral_taxa.Rmd) | Integration and filtering of exported tables; `virus_tab.xlsx` |
@@ -49,11 +49,11 @@ The source code and documentation are publicly accessible through GitHub without
 
 | Input | Expected format or structure | Step |
 | --- | --- | --- |
-| Raw paired reads | FASTQ: `<sample>_1.fastq`, `<sample>_2.fastq` | 1 |
+| Raw paired reads | Gzip FASTQ: `<sample>.R1.fastq.gz`, `<sample>.R2.fastq.gz` | 1 |
 | Cleaned reads | Gzip FASTQ: `<sample>.R1.clean.fastq.gz`, `<sample>.R2.clean.fastq.gz` | 2 |
 | Host-depleted reads | Gzip FASTQ: `<sample>.nonhuman_R1.fastq.gz`, `<sample>.nonhuman_R2.fastq.gz` | 3 |
 | Human reference | Bowtie2 index configured by `BOWTIE_INDEX` | 2 |
-| Viral database | Kraken2 database directory configured by `REF_DIR` | 3 |
+| Viral database | Kraken2 database directory configured by `KRAKEN_DB` | 3 |
 | Exported classification tables | `virus_tab1.tsv` through `virus_tab10.tsv`, with taxon name, lineage, and numeric sample counts | 4 |
 | Viral abundance | `virus_tab.xlsx`: `Taxon` identifier column followed by numeric sample-count columns | 5–8 |
 | Clinical metadata | `clinical_data.xlsx`: one row per sample, identifier in `samples_diego` | 5–8 |
@@ -78,9 +78,9 @@ FASTQ and TSV facilitate exchange between tools. XLSX is the current input forma
 
 ## Requirements and dependencies
 
-The Shell steps require **Bash**, **Conda**, **fastp**, **Bowtie2**, **Kraken2**, a human reference index, and a viral classification database. PBS is required only for the original scheduler submission configuration.
+The Shell steps require **Bash**, **Conda**, **FastQC**, **MultiQC**, **fastp**, **Bowtie2**, **Kraken2**, a human reference index, and a viral classification database.
 
-The scripts contain server-specific absolute paths and Conda activation commands. PBS directives request **24 CPUs and 36 hours per job**; these are configured requests, not measured minimum requirements or guaranteed runtimes.
+Install FastQC, MultiQC, fastp, Bowtie2, and Kraken2 in a dedicated Conda environment. Activate that environment before running the Bash scripts. The current scripts use the working directory as `BASE_DIR` and configure 8 threads per tool; adjust paths and resources for your system.
 
 The R Markdown scripts load:
 
@@ -102,35 +102,48 @@ git rev-parse HEAD
 
 Record the commit identifier with the results.
 
-### 2. Configure inputs and paths
+### 2. Install tools in a Conda environment
 
-Edit directory variables, Conda activation commands, references, and resource settings in scripts 1–3. Create required output directories; not all scripts create them automatically. Check paired-read naming conventions.
-
-**Existing cleanup behavior:** step 1 ends with `rm *.fastq.gz` inside `RAW_DIR`. Review or remove this line before running to avoid deleting original compressed reads. Step 2 removes intermediate SAM files.
-
-### 3. Execute the Shell steps sequentially
-
-For a configured PBS environment, submit each job only after the preceding step has completed successfully:
+Create a dedicated environment and install the command-line tools:
 
 ```bash
-qsub 1_Quality_control_and_preprocessing.sh
-# After step 1 completes:
-qsub 2_Removing_host_contamination.sh
-# After step 2 completes:
-qsub 3_Taxonomic_classification.sh
+conda create -n gastric_virome --override-channels -c conda-forge -c bioconda \
+    fastqc multiqc fastp bowtie2 kraken2
 ```
 
-For execution without PBS, adapt the server configuration and run each script with `bash`. Inspect logs, QC reports, and outputs before proceeding; the scripts lack comprehensive failure checking.
+Activate the environment before running any Bash script, including in each new terminal session:
+
+```bash
+conda activate gastric_virome
+```
+
+The environment name is an example; use your own name if the tools are already installed in another Conda environment. Reference databases must be downloaded and configured separately.
+
+### 3. Configure inputs and paths
+
+Edit directory variables, reference paths, and resource settings in scripts 1–3. Run the scripts from the project root so `BASE_DIR="$(pwd)"` resolves correctly. Prepare the input directories and check paired-read naming conventions. Ensure `FASTQ/CLEAN_FASTQ` and `FASTQ/NON-HUMAN_FASTQ` exist; the scripts create their QC/report directories.
+
+### 4. Execute the Bash steps sequentially
+
+With the Conda environment active, run each script only after the preceding step has completed successfully:
+
+```bash
+bash 1_Quality_control_and_preprocessing.sh
+bash 2_Removing_host_contamination.sh
+bash 3_Taxonomic_classification.sh
+```
+
+Inspect logs, QC reports, and outputs before proceeding. If adapting the scripts for PBS, initialize Conda and activate the environment inside each job script before invoking the tools, then submit the jobs in sequence.
 
 Bowtie2's `--un-conc-gz` retains pairs that do not align concordantly; this does not by itself establish that both mates are free of human sequence.
 
-### 4. Prepare downstream tables
+### 5. Prepare downstream tables
 
 Integrate/export Kraken2 reports using Pavian and prepare step 4's TSV inputs. Review its sample renaming and filtering. The hard-coded `1:987` and `1:451` column ranges are dataset-specific and must match the actual table dimensions.
 
 Run step 4 to produce `virus_tab.xlsx`. Provide `clinical_data.xlsx` and, for step 5, `virus_hosp.xlsx` in the R working directory, or update the input paths.
 
-### 5. Run the R analyses
+### 6. Run the R analyses
 
 Open steps 5–8 in RStudio and run the relevant chunks after checking sample matching, group definitions, and inputs. Review each document before rendering it in full. Save tables, figures, parameters, and session information with the results.
 
@@ -138,9 +151,10 @@ Open steps 5–8 in RStudio and run the relevant chunks after checking sample ma
 
 | Component | Implemented settings |
 | --- | --- |
+| FastQC / MultiQC | Quality assessment and report aggregation before and after preprocessing |
 | fastp | Paired-end adapter detection; qualified Phred threshold 15; minimum length 50; 8 threads |
-| Bowtie2 | hg38 index prefix; `--very-sensitive`; 24 threads; `--un-conc-gz` |
-| Kraken2 | Paired-end classification; `--use-names`; 20 threads |
+| Bowtie2 | hg38 index prefix; `--very-sensitive`; 8 threads; `--un-conc-gz` |
+| Kraken2 | Paired-end classification; `--use-names`; gzip input; 8 threads |
 | Filtering | Lineages matching `Viruses`; samples and taxa with total counts greater than 4 at their respective filtering steps |
 | Diversity | Alpha diversity including richness and Shannon; Bray–Curtis ordination; PERMANOVA and PERMDISP |
 | Clustering | Jensen–Shannon divergence and PAM |
