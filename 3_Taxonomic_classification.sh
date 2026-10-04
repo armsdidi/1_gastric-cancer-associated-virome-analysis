@@ -1,47 +1,79 @@
 #!/bin/bash
 
-#PBS -l select=1:ncpus=24
-#PBS -l walltime=36:00:00
-#PBS -N diego_kraken2
-#PBS -V
-#PBS -j oe
-#PBS -o diego_kraken2_report
+# ============================================================
+# TAXONOMIC CLASSIFICATION WITH Kraken2
+# ============================================================
 
-# Activating the conda environment on the server:
-source activate bioinfo
+# Stop the script if an error occurs:
+set -euo pipefail
 
-# Creating the main directories:
-BASE_DIR="/scratch/LABIOINF/dpereira"
-SAMPLES_DIR="$BASE_DIR/samples/nonhuman_fastq"
-REP_DIR="$BASE_DIR/viral_reports"
-REF_DIR="$BASE_DIR/databases/virus_db"
+# Number of threads:
+THREADS=8
 
-# Creating a list of samples:
-cd "$SAMPLES_DIR"
+# Directories:
+BASE_DIR="$(pwd)"
+NONHUMAN_DIR="$BASE_DIR/FASTQ/NON-HUMAN_FASTQ"
+REP_DIR="$BASE_DIR/KRAKEN_REPORTS"
+KRAKEN_INDEX="$BASE_DIR/DATABASES/KRAKEN2/kraken_db"
+SAMPLE_LIST="$BASE_DIR/all_sample.txt"
 
-echo ">>> Creating a list of samples..."
-ls *.nonhuman_R1.fastq.gz \
-    | sed 's/.nonhuman_R1.fastq.gz//' \
-    | sort -u > "$BASE_DIR/all_sample.txt"
+# Create the output directory:
+mkdir -p "$REP_DIR"
 
-# Performing taxonomic classification:
+# Create the sample list:
+echo ">>> Creating the sample list..."
+
+find "$NONHUMAN_DIR" \
+    -maxdepth 1 \
+    -type f \
+    -name "*.nonhuman_R1.fastq.gz" \
+    -exec basename {} \; \
+    | sed 's/\.nonhuman_R1\.fastq\.gz$//' \
+    | sort -u \
+    > "$SAMPLE_LIST"
+
+# Check whether samples are available:
+if [ ! -s "$SAMPLE_LIST" ]; then
+    echo "ERROR: no samples found in $NONHUMAN_DIR" >&2
+    exit 1
+fi
+
+echo ">>> Number of samples: $(wc -l < "$SAMPLE_LIST")"
+
+# Check paired-end files before processing:
+while IFS= read -r SAMPLE; do
+
+    R1="$NONHUMAN_DIR/${SAMPLE}.nonhuman_R1.fastq.gz"
+    R2="$NONHUMAN_DIR/${SAMPLE}.nonhuman_R2.fastq.gz"
+
+    if [ ! -s "$R1" ] || [ ! -s "$R2" ]; then
+        echo "ERROR: R1 or R2 file missing or empty for $SAMPLE" >&2
+        exit 1
+    fi
+
+done < "$SAMPLE_LIST"
+
+# Perform taxonomic classification:
 echo ">>> Starting classification with Kraken2..."
 
-while read -r SAMPLE; do
+while IFS= read -r SAMPLE; do
 
-    echo "===================================="
-    echo " → Processing: $SAMPLE"
-    echo "===================================="
+    echo ">>> Processing: $SAMPLE"
 
     kraken2 \
-        --threads 20 \
-        --db "$REF_DIR" \
+        --threads "$THREADS" \
+        --db "$KRAKEN_INDEX" \
         --report "$REP_DIR/${SAMPLE}.report" \
+        --output "$REP_DIR/${SAMPLE}.kraken" \
         --use-names \
+        --gzip-compressed \
         --paired \
-        "$SAMPLES_DIR/${SAMPLE}.nonhuman_R1.fastq.gz" \
-        "$SAMPLES_DIR/${SAMPLE}.nonhuman_R2.fastq.gz"
+        "$NONHUMAN_DIR/${SAMPLE}.nonhuman_R1.fastq.gz" \
+        "$NONHUMAN_DIR/${SAMPLE}.nonhuman_R2.fastq.gz" \
+        2> "$REP_DIR/${SAMPLE}.kraken2.log"
 
-done < "$BASE_DIR/all_sample.txt"
+    echo ">>> Completed: $SAMPLE"
+
+done < "$SAMPLE_LIST"
 
 echo ">>> Taxonomic classification completed successfully!"
