@@ -133,7 +133,7 @@ bash 2_Removing_host_contamination.sh
 bash 3_Taxonomic_classification.sh
 ```
 
-Inspect logs, QC reports, and outputs before proceeding. If adapting the scripts for PBS, initialize Conda and activate the environment inside each job script before invoking the tools, then submit the jobs in sequence.
+Inspect logs, QC reports, and outputs before proceeding.
 
 Bowtie2's `--un-conc-gz` retains pairs that do not align concordantly; this does not by itself establish that both mates are free of human sequence.
 
