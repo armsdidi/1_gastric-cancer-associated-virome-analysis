@@ -14,7 +14,7 @@ THREADS=8
 BASE_DIR="$(pwd)"
 NONHUMAN_DIR="$BASE_DIR/FASTQ/NON-HUMAN_FASTQ"
 REP_DIR="$BASE_DIR/KRAKEN_REPORTS"
-KRAKEN_INDEX="$BASE_DIR/DATABASES/KRAKEN2/kraken_db"
+KRAKEN_DB="$BASE_DIR/DATABASES/KRAKEN2/kraken_db"
 SAMPLE_LIST="$BASE_DIR/all_sample.txt"
 
 # Create the output directory:
@@ -62,7 +62,7 @@ while IFS= read -r SAMPLE; do
 
     kraken2 \
         --threads "$THREADS" \
-        --db "$KRAKEN_INDEX" \
+        --db "$KRAKEN_DB" \
         --report "$REP_DIR/${SAMPLE}.report" \
         --output "$REP_DIR/${SAMPLE}.kraken" \
         --use-names \
