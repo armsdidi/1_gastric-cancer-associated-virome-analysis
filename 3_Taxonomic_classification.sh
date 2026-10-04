@@ -17,7 +17,7 @@ REP_DIR="$BASE_DIR/KRAKEN_REPORTS"
 KRAKEN_DB="$BASE_DIR/DATABASES/KRAKEN2/kraken_db"
 SAMPLE_LIST="$BASE_DIR/all_sample.txt"
 
-# Create the output directory:
+# Create directories:
 mkdir -p "$REP_DIR"
 
 # Create the sample list:
