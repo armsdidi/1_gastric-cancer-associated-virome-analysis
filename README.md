@@ -191,7 +191,7 @@ This license does not grant rights to external sequencing data, clinical metadat
 
 **Diego Pereira**
 
-Bioinformatics Scientist | PhD in Genetics & Molecular Biology | NGS | R | Linux/Bash | Metagenomics & Metatranscriptomics.
+Bioinformatics Scientist | PhD in Genetics & Molecular Biology | NGS | R | Bash | Metagenomics & Metatranscriptomics.
 
 Use [GitHub Issues](https://github.com/armsdidi/1_gastric-cancer-associated-virome-analysis/issues) for questions, bug reports, or suggestions. Include the script, commit, software versions, and a reproducible description without identifiable clinical information.
 
